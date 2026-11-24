@@ -21,41 +21,46 @@ retrieval stage:
 
 ## Results (BEIR SciFact test set, 300 queries)
 
-First run: fp32 on an RTX 5050 laptop GPU, re-ranking the top 100 dense candidates.
+These are the final numbers: fp16 cross-encoders on an RTX 5050 laptop GPU, re-ranking the
+top-k of 100 dense candidates. Latency is p95 per query (dense search + re-ranking),
+measured on dev queries.
 
-| configuration | nDCG@10 | MRR@10 | Recall@10 | p95 latency / query |
+| configuration | nDCG@10 | MRR@10 | Recall@10 | p95 latency |
 |---|---:|---:|---:|---:|
-| dense (all-MiniLM-L6-v2) | 0.648 | 0.607 | 0.788 | 15 ms |
-| + ms-marco-MiniLM-L6 re-ranker, k = 20 | 0.689 | 0.658 | 0.812 | – |
-| + ms-marco-MiniLM-L6 re-ranker, k = 100 | 0.687 | 0.656 | 0.809 | 466 ms |
-| + MedCPT re-ranker, k = 20 | 0.739 | 0.717 | 0.828 | – |
-| + MedCPT re-ranker, k = 50 | 0.756 | 0.730 | 0.853 | – |
-| **+ MedCPT re-ranker, k = 100** | **0.765** | **0.738** | **0.867** | 2,187 ms |
+| dense (all-MiniLM-L6-v2) | 0.648 | 0.607 | 0.788 | 11 ms |
+| + ms-marco-MiniLM-L6 re-ranker, k = 20 | 0.689 | 0.658 | 0.812 | 58 ms |
+| + ms-marco-MiniLM-L6 re-ranker, k = 100 | 0.687 | 0.656 | 0.809 | 234 ms |
+| + MedCPT re-ranker, k = 10 | 0.719 | 0.702 | 0.788 | 87 ms |
+| **+ MedCPT re-ranker, k = 20 (current champion)** | **0.742** | **0.721** | **0.828** | **215 ms** |
+| + MedCPT re-ranker, k = 50 | 0.758 | 0.734 | 0.853 | 475 ms |
+| + MedCPT re-ranker, k = 100 | 0.768 | 0.742 | 0.867 | 872 ms |
 
 Recall@100 is 0.925 for every row, because re-ranking only reorders the same 100 candidates.
 
 - **The metric code is validated.** The dense baseline (0.648) matches the published
   all-MiniLM-L6-v2 score on SciFact (≈ 0.645).
 - **A domain-specific re-ranker matters.** MedCPT, which NCBI trained on PubMed search logs,
-  adds +0.117 nDCG@10 (+18% relative). The general MS MARCO re-ranker adds only +0.04.
-- **More candidates help MedCPT but cost latency.** Going from k = 20 to 100 adds +0.026
-  nDCG@10 at roughly 5x the cost.
+  adds up to +0.12 nDCG@10. The general MS MARCO re-ranker adds only +0.04, and gains
+  nothing past k = 20.
+- **Quality vs latency is the real decision.** Within a 250 ms p95 budget, the best choice
+  is MedCPT with k = 20: +0.094 nDCG@10 (+14% relative) over dense. k = 100 would add a
+  further +0.026, at 4x the latency.
+- **fp16 vs fp32:** identical ranking quality (to 3 decimals) and 3.3x faster for MedCPT@100
+  (2,187 ms → 668 ms in the same run setup).
 
-### The promotion gate in action
+### How the champion was chosen: the registry history
 
-| version | configuration | dev nDCG@10 | p95 | gate decision |
-|---|---|---:|---:|---|
-| v1 | dense | 0.660 | 15 ms | **promoted** (first champion) |
-| v2 | + ms-marco @100 | 0.715 | 466 ms | rejected: p95 466 ms > budget 250 ms |
-| v3 | + MedCPT @100 | 0.779 | 2,187 ms | rejected: p95 2,187 ms > budget 250 ms |
+| version | configuration | what happened | gate decision |
+|---|---|---|---|
+| v1 | dense, fp32 | first registration | **promoted** (first champion) |
+| v2, v3 | ms-marco@100, MedCPT@100, fp32, k chosen by quality only | 466 ms and 2,187 ms p95 | rejected: over the 250 ms budget |
+| v4–v6 | fp16, k chosen within the latency budget | MedCPT@20: dev +0.088 over v1, 153 ms | **v6 promoted**; v4/v5 rejected (not better) |
+| v7–v9 | same, after fixing the sigmoid-tie bug (below) | MedCPT@20: dev +0.0005 over v6 | v9 rejected (gain < 0.005), then **promoted by audited override** |
 
-The most accurate model was about 9x over the latency budget, and the gate kept it out of
-production. The fix is the engineering work a team would actually do:
-- **fp16 inference** for the cross-encoder,
-- **choosing k by the best dev quality that fits the budget,** instead of by quality alone.
-
-**Status:** the fp16 run with latency-aware k selection is in progress. Its results, and
-which version the gate promotes, will be added here.
+The override is deliberate and narrow. It waives only the minimum-gain rule, never the
+latency budget or a real regression, and the reason is stored on the version:
+`OVERRIDE (v6 was scored with the fp16 sigmoid-tie bug; v9 is the same config with raw-logit
+scoring)`. `v6` keeps the `previous` alias, so rolling back is one command.
 
 ## How it works
 
@@ -85,11 +90,12 @@ uv pip install -e ".[dev,llm]"           # plus a CUDA 12.8 PyTorch wheel for RT
 biomedrag download                       # BEIR SciFact from the Hugging Face Hub
 biomedrag evaluate --register            # all configs; register the dev-chosen ones
 biomedrag models                         # versions, aliases, metrics, gate decisions
-biomedrag promote 3                      # passes the gate -> champion, else rejected with a reason
+biomedrag promote 9                      # passes the gate -> champion, else rejected with a reason
+biomedrag promote 9 --override-reason "..."   # waive only min-gain; recorded on the version
 biomedrag rollback                       # champion -> previous
 biomedrag search "statins reduce LDL cholesterol"
 MISTRAL_API_KEY=... biomedrag answer "does aspirin reduce myocardial infarction risk?"
-pytest                                   # 12 tests, no network (fake models), temp MLflow registry
+pytest                                   # 14 tests, no network (fake models), temp MLflow registry
 ```
 
 ## Layout
@@ -117,7 +123,12 @@ caught along the way:
 - MLflow returning versions as `int` from some calls and `str` from others, which would have
   silently broken the "is this already champion?" comparison,
 - a quality-only choice of k that produced a model 9x over the latency budget, which the
-  gate caught.
+  gate caught,
+- **a ranking bug from sigmoid saturation in fp16.** The cross-encoder's default sigmoid
+  turned every logit above ~8 into exactly 1.0. On a 100-query dev sample, 52 queries had
+  tied scores (6 at rank 1), and the ties silently fell back to dense order. It was spotted
+  because the champion's top 3 all scored "1.000". The fix ranks on raw logits, with a
+  regression test; MedCPT@20 test nDCG@10 went from 0.739 to 0.742.
 
 ## Data and licences
 

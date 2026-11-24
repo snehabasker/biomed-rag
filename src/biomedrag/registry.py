@@ -12,7 +12,10 @@ Promotion gate (`promote`):
    gate uses the *dev* split, the same split used for every other choice. Test numbers are
    recorded as tags on the version but never decide anything.
 2. **Latency:** p95 per-query latency must be within `latency_budget_ms`.
-If there is no champion yet, only the latency check applies. On promotion, the old champion
+If there is no champion yet, only the latency check applies. An audited override
+(`override_reason`) can waive rule 1's *minimum gain*, for example to replace a champion
+built with a known bug. It cannot waive latency or a real dev regression, and it is
+recorded as `promoted_override`. On promotion, the old champion
 gets the alias `previous`, so `rollback` is one call. Every decision is written to the
 version's tags (`promotion`, `promotion_reason`), so the registry records its own history.
 """
@@ -114,19 +117,27 @@ def champion_version(client: MlflowClient | None = None) -> str | None:
         return None
 
 
-def promote(version: str, min_gain: float = 0.005, latency_budget_ms: float = 250.0) -> dict:
+def promote(version: str, min_gain: float = 0.005, latency_budget_ms: float = 250.0,
+            override_reason: str | None = None) -> dict:
+    """`override_reason` waives *only* the minimum-gain rule (e.g. replacing a champion built
+    with a known bug by the same config with the bug fixed). It never waives the latency budget
+    or a dev regression larger than `min_gain`, and the reason is recorded on the version."""
     version = str(version)  # MLflow returns versions as int from some calls and str from others
     client = _setup()
     cand = _metrics(client, version)
     current = champion_version(client)
-    reasons = []
-    if cand["latency_p95_ms"] > latency_budget_ms:
+    reasons, waived = [], None
+    if cand["latency_p95_ms"] > latency_budget_ms:  # never waivable
         reasons.append(f"p95 latency {cand['latency_p95_ms']:.0f} ms > budget {latency_budget_ms:.0f} ms")
     if current is not None and current != version:
         champ = _metrics(client, current)
         gain = cand["dev_ndcg_at_10"] - champ["dev_ndcg_at_10"]
         if gain < min_gain:
-            reasons.append(f"dev nDCG@10 gain {gain:+.4f} vs champion v{current} < {min_gain}")
+            msg = f"dev nDCG@10 gain {gain:+.4f} vs champion v{current} < {min_gain}"
+            if override_reason and gain > -min_gain:  # a waiver may not hide a real regression
+                waived = msg
+            else:
+                reasons.append(msg)
     elif current == version:
         reasons.append("already champion")
     promoted = not reasons
@@ -134,12 +145,17 @@ def promote(version: str, min_gain: float = 0.005, latency_budget_ms: float = 25
         if current is not None:
             client.set_registered_model_alias(MODEL_NAME, PREVIOUS, current)
         client.set_registered_model_alias(MODEL_NAME, CHAMPION, version)
-        reason = (f"dev nDCG@10 {cand['dev_ndcg_at_10']:.4f}"
-                  + (f" beats v{current}" if current else " (first champion)")
-                  + f", p95 {cand['latency_p95_ms']:.0f} ms within budget")
+        if waived:
+            reason = (f"OVERRIDE ({override_reason}); waived: {waived}; "
+                      f"p95 {cand['latency_p95_ms']:.0f} ms within budget")
+        else:
+            reason = (f"dev nDCG@10 {cand['dev_ndcg_at_10']:.4f}"
+                      + (f" beats v{current}" if current else " (first champion)")
+                      + f", p95 {cand['latency_p95_ms']:.0f} ms within budget")
     else:
         reason = "; ".join(reasons)
-    client.set_model_version_tag(MODEL_NAME, version, "promotion", "promoted" if promoted else "rejected")
+    status = ("promoted_override" if waived else "promoted") if promoted else "rejected"
+    client.set_model_version_tag(MODEL_NAME, version, "promotion", status)
     client.set_model_version_tag(MODEL_NAME, version, "promotion_reason", reason)
     return {"version": version, "promoted": promoted, "reason": reason, "previous_champion": current}
 

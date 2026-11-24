@@ -48,6 +48,22 @@ def test_gate_promotes_rejects_and_rolls_back(reg):
         registry.rollback()  # `previous` was consumed
 
 
+def test_override_waives_only_min_gain_and_is_recorded(reg):
+    v1 = _register(reg, 0, dev_ndcg=0.700, p95=10)
+    registry.promote(v1)
+    tiny = _register(reg, 20, dev_ndcg=0.7005, p95=100)  # bug-fix rebuild: +0.0005
+    assert not registry.promote(tiny)["promoted"]
+    d = registry.promote(tiny, override_reason="v1 built with sigmoid-tie bug")
+    assert d["promoted"] and d["reason"].startswith("OVERRIDE (v1 built with sigmoid-tie bug)")
+    assert {r["version"]: r for r in registry.list_versions()}[tiny]["promotion"] == "promoted_override"
+
+    slow = _register(reg, 50, dev_ndcg=0.7006, p95=900)
+    assert not registry.promote(slow, override_reason="please")["promoted"]  # latency never waived
+    worse = _register(reg, 10, dev_ndcg=0.60, p95=10)
+    assert not registry.promote(worse, override_reason="please")["promoted"]  # nor a real regression
+    assert registry.champion_version() == tiny
+
+
 def test_champion_model_loads_and_searches_without_reembedding(reg, monkeypatch):
     v = _register(reg, 4, dev_ndcg=0.5, p95=10)
     registry.promote(v)

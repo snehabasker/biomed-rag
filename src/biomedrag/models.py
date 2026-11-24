@@ -44,7 +44,14 @@ class _CrossEncoder:
             self.model.model.half()
 
     def predict(self, pairs: list[tuple[str, str]], batch_size: int = 64) -> np.ndarray:
-        return np.asarray(self.model.predict(pairs, batch_size=batch_size, show_progress_bar=False))
+        """Raw logits, not sigmoid probabilities. Sigmoid preserves order but saturates: in fp16,
+        logits above ~8 all become 1.0. On SciFact dev that tied scores in 52 of 100 queries
+        (6 at rank 1), and the ties silently fell back to dense order."""
+        import torch
+
+        scores = self.model.predict(pairs, batch_size=batch_size, show_progress_bar=False,
+                                    activation_fn=torch.nn.Identity())
+        return np.asarray(scores, dtype=np.float32)
 
 
 @lru_cache(maxsize=4)

@@ -51,7 +51,7 @@ def cmd_models(a) -> None:
 def cmd_promote(a) -> None:
     from biomedrag.registry import promote
 
-    print(json.dumps(promote(a.version, a.min_gain, a.latency_budget_ms), indent=1))
+    print(json.dumps(promote(a.version, a.min_gain, a.latency_budget_ms, a.override_reason), indent=1))
 
 
 def cmd_rollback(a) -> None:
@@ -98,6 +98,8 @@ def main(argv: list[str] | None = None) -> None:
     s.add_argument("version")
     s.add_argument("--min-gain", type=float, default=0.005, help="required dev nDCG@10 gain over champion")
     s.add_argument("--latency-budget-ms", type=float, default=250.0, help="p95 per-query budget")
+    s.add_argument("--override-reason", default=None,
+                   help="waive only the minimum-gain rule (recorded); never latency or a real regression")
     s.set_defaults(func=cmd_promote)
 
     s = sub.add_parser("rollback", help="restore the previous champion")
