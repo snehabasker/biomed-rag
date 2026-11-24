@@ -1,0 +1,232 @@
+{
+ "dataset": "BEIR SciFact",
+ "corpus_docs": 5183,
+ "encoder": "sentence-transformers/all-MiniLM-L6-v2",
+ "candidates": 100,
+ "queries": {
+  "dev(train)": 809,
+  "test": 300
+ },
+ "device": "cuda",
+ "selection": "rerank_k by dev nDCG@10 (ties within 0.002 -> smaller k)",
+ "configs": [
+  {
+   "label": "dense",
+   "reranker": null,
+   "rerank_k": 0,
+   "dev": {
+    "ndcg@10": 0.660240016457893,
+    "mrr@10": 0.6261649694900621,
+    "recall@10": 0.7855583024309848,
+    "recall@100": 0.9324268644416974
+   },
+   "test": {
+    "ndcg@10": 0.6484032131749053,
+    "mrr@10": 0.6068452380952382,
+    "recall@10": 0.7883333333333333,
+    "recall@100": 0.925
+   }
+  },
+  {
+   "label": "dense+ms-marco-MiniLM-L6-v2@10",
+   "reranker": "cross-encoder/ms-marco-MiniLM-L6-v2",
+   "rerank_k": 10,
+   "dev": {
+    "ndcg@10": 0.6981512364237044,
+    "mrr@10": 0.675462063688269,
+    "recall@10": 0.7855583024309848,
+    "recall@100": 0.9324268644416974
+   },
+   "test": {
+    "ndcg@10": 0.6821426591713994,
+    "mrr@10": 0.6544880952380953,
+    "recall@10": 0.7883333333333333,
+    "recall@100": 0.925
+   }
+  },
+  {
+   "label": "dense+ms-marco-MiniLM-L6-v2@20",
+   "reranker": "cross-encoder/ms-marco-MiniLM-L6-v2",
+   "rerank_k": 20,
+   "dev": {
+    "ndcg@10": 0.7055250817531089,
+    "mrr@10": 0.6774309847548414,
+    "recall@10": 0.8102801812937783,
+    "recall@100": 0.9324268644416974
+   },
+   "test": {
+    "ndcg@10": 0.6890258053108496,
+    "mrr@10": 0.6581772486772487,
+    "recall@10": 0.8123333333333332,
+    "recall@100": 0.925
+   }
+  },
+  {
+   "label": "dense+ms-marco-MiniLM-L6-v2@50",
+   "reranker": "cross-encoder/ms-marco-MiniLM-L6-v2",
+   "rerank_k": 50,
+   "dev": {
+    "ndcg@10": 0.7122128113899229,
+    "mrr@10": 0.6803152039555006,
+    "recall@10": 0.830366707869798,
+    "recall@100": 0.9324268644416974
+   },
+   "test": {
+    "ndcg@10": 0.6875410201948989,
+    "mrr@10": 0.6575343915343916,
+    "recall@10": 0.8088888888888889,
+    "recall@100": 0.925
+   }
+  },
+  {
+   "label": "dense+ms-marco-MiniLM-L6-v2@100",
+   "reranker": "cross-encoder/ms-marco-MiniLM-L6-v2",
+   "rerank_k": 100,
+   "dev": {
+    "ndcg@10": 0.7145514873249996,
+    "mrr@10": 0.6831577295112523,
+    "recall@10": 0.8326328800988874,
+    "recall@100": 0.9324268644416974
+   },
+   "test": {
+    "ndcg@10": 0.6867687810573595,
+    "mrr@10": 0.6559100529100529,
+    "recall@10": 0.8088888888888889,
+    "recall@100": 0.925
+   }
+  },
+  {
+   "label": "dense+MedCPT-Cross-Encoder@10",
+   "reranker": "ncbi/MedCPT-Cross-Encoder",
+   "rerank_k": 10,
+   "dev": {
+    "ndcg@10": 0.7233310144984939,
+    "mrr@10": 0.7083995526517158,
+    "recall@10": 0.7855583024309848,
+    "recall@100": 0.9324268644416974
+   },
+   "test": {
+    "ndcg@10": 0.7169947714535565,
+    "mrr@10": 0.698670634920635,
+    "recall@10": 0.7883333333333333,
+    "recall@100": 0.925
+   }
+  },
+  {
+   "label": "dense+MedCPT-Cross-Encoder@20",
+   "reranker": "ncbi/MedCPT-Cross-Encoder",
+   "rerank_k": 20,
+   "dev": {
+    "ndcg@10": 0.7483285478787499,
+    "mrr@10": 0.726861498616752,
+    "recall@10": 0.8305727235269881,
+    "recall@100": 0.9324268644416974
+   },
+   "test": {
+    "ndcg@10": 0.7390729211122896,
+    "mrr@10": 0.7171891534391535,
+    "recall@10": 0.8278888888888889,
+    "recall@100": 0.925
+   }
+  },
+  {
+   "label": "dense+MedCPT-Cross-Encoder@50",
+   "reranker": "ncbi/MedCPT-Cross-Encoder",
+   "rerank_k": 50,
+   "dev": {
+    "ndcg@10": 0.7647465872958639,
+    "mrr@10": 0.7411035572036807,
+    "recall@10": 0.8533786567779151,
+    "recall@100": 0.9324268644416974
+   },
+   "test": {
+    "ndcg@10": 0.7560117820213353,
+    "mrr@10": 0.7301693121693121,
+    "recall@10": 0.8532222222222223,
+    "recall@100": 0.925
+   }
+  },
+  {
+   "label": "dense+MedCPT-Cross-Encoder@100",
+   "reranker": "ncbi/MedCPT-Cross-Encoder",
+   "rerank_k": 100,
+   "dev": {
+    "ndcg@10": 0.7792525509524414,
+    "mrr@10": 0.753732807502894,
+    "recall@10": 0.8733621755253399,
+    "recall@100": 0.9324268644416974
+   },
+   "test": {
+    "ndcg@10": 0.7653971867179489,
+    "mrr@10": 0.73819708994709,
+    "recall@10": 0.8668888888888889,
+    "recall@100": 0.925
+   }
+  }
+ ],
+ "chosen": [
+  {
+   "label": "dense",
+   "reranker": null,
+   "rerank_k": 0,
+   "dev": {
+    "ndcg@10": 0.660240016457893,
+    "mrr@10": 0.6261649694900621,
+    "recall@10": 0.7855583024309848,
+    "recall@100": 0.9324268644416974
+   },
+   "test": {
+    "ndcg@10": 0.6484032131749053,
+    "mrr@10": 0.6068452380952382,
+    "recall@10": 0.7883333333333333,
+    "recall@100": 0.925
+   },
+   "latency": {
+    "p50_ms": 6.709269499879156,
+    "p95_ms": 14.682430599532378
+   }
+  },
+  {
+   "label": "dense+ms-marco-MiniLM-L6-v2@100",
+   "reranker": "cross-encoder/ms-marco-MiniLM-L6-v2",
+   "rerank_k": 100,
+   "dev": {
+    "ndcg@10": 0.7145514873249996,
+    "mrr@10": 0.6831577295112523,
+    "recall@10": 0.8326328800988874,
+    "recall@100": 0.9324268644416974
+   },
+   "test": {
+    "ndcg@10": 0.6867687810573595,
+    "mrr@10": 0.6559100529100529,
+    "recall@10": 0.8088888888888889,
+    "recall@100": 0.925
+   },
+   "latency": {
+    "p50_ms": 403.3978459992795,
+    "p95_ms": 465.5786241003625
+   }
+  },
+  {
+   "label": "dense+MedCPT-Cross-Encoder@100",
+   "reranker": "ncbi/MedCPT-Cross-Encoder",
+   "rerank_k": 100,
+   "dev": {
+    "ndcg@10": 0.7792525509524414,
+    "mrr@10": 0.753732807502894,
+    "recall@10": 0.8733621755253399,
+    "recall@100": 0.9324268644416974
+   },
+   "test": {
+    "ndcg@10": 0.7653971867179489,
+    "mrr@10": 0.73819708994709,
+    "recall@10": 0.8668888888888889,
+    "recall@100": 0.925
+   },
+   "latency": {
+    "p50_ms": 1927.9529585001,
+    "p95_ms": 2186.6525052003453
+   }
+  }
+ ]
+}

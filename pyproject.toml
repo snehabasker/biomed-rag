@@ -1,0 +1,36 @@
+[build-system]
+requires = ["hatchling>=1.24"]
+build-backend = "hatchling.build"
+
+[project]
+name = "biomedrag"
+version = "0.1.0"
+description = "Biomedical RAG retrieval: dense retrieval + cross-encoder re-ranking, measured on BEIR SciFact, with MLflow model registry and gated promotion"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+dependencies = [
+    "numpy>=1.26",
+    "pyarrow>=15",
+    "faiss-cpu>=1.8",
+    "sentence-transformers>=3.0",
+    "huggingface-hub>=0.24",
+    "mlflow>=3.1,<4",
+]
+
+[project.optional-dependencies]
+llm = ["mistralai>=1.0"]
+dev = ["pytest>=8", "ruff>=0.6"]
+
+[project.scripts]
+biomedrag = "biomedrag.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/biomedrag"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 110
